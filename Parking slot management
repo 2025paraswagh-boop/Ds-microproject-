@@ -1,0 +1,461 @@
+import java.util.Scanner;
+import java.util.ArrayList;
+import java.time.LocalDateTime;
+import java.time.Duration;
+import java.time.format.DateTimeFormatter;
+
+// Stores the details of a vehicle
+class ParkingVehicle {
+
+    String vehicleNumber;
+    int slotNumber;
+    LocalDateTime entryTime;
+
+    ParkingVehicle(String number, int slot) {
+        vehicleNumber = number;
+        slotNumber = slot;
+        entryTime = LocalDateTime.now();
+    }
+}
+
+// Circular Queue implementation
+class ParkingCircularQueue {
+
+    ParkingVehicle[] queue;
+    int front, rear, capacity;
+
+    ParkingCircularQueue(int size) {
+        capacity = size;
+        queue = new ParkingVehicle[capacity];
+        front = -1;
+        rear = -1;
+    }
+
+    // Check whether queue is empty
+    boolean isEmpty() {
+        return front == -1;
+    }
+
+    // Check whether queue is full
+    boolean isFull() {
+        return (rear + 1) % capacity == front;
+    }
+
+    // Add vehicle into circular queue
+    boolean enqueue(ParkingVehicle v) {
+
+        if (isFull()) {
+            return false;
+        }
+
+        if (isEmpty()) {
+            front = 0;
+            rear = 0;
+        } else {
+            rear = (rear + 1) % capacity;
+        }
+
+        queue[rear] = v;
+        return true;
+    }
+
+    // Remove vehicle from front
+    ParkingVehicle dequeue() {
+
+        if (isEmpty()) {
+            return null;
+        }
+
+        ParkingVehicle v = queue[front];
+        queue[front] = null;
+
+        if (front == rear) {
+            front = -1;
+            rear = -1;
+        } else {
+            front = (front + 1) % capacity;
+        }
+
+        return v;
+    }
+
+    // Search vehicle using vehicle number
+    ParkingVehicle search(String number) {
+
+        if (isEmpty()) {
+            return null;
+        }
+
+        int i = front;
+
+        while (true) {
+
+            if (queue[i].vehicleNumber.equalsIgnoreCase(number)) {
+                return queue[i];
+            }
+
+            if (i == rear) {
+                break;
+            }
+
+            i = (i + 1) % capacity;
+        }
+
+        return null;
+    }
+
+    // Count occupied slots
+    int occupiedCount() {
+
+        if (isEmpty()) {
+            return 0;
+        }
+
+        if (rear >= front) {
+            return rear - front + 1;
+        }
+
+        return capacity - front + rear + 1;
+    }
+
+    // Display all parking slots
+    void displaySlots() {
+
+        System.out.println("\n========== PARKING SLOT STATUS ==========");
+
+        for (int i = 0; i < capacity; i++) {
+
+            if (queue[i] == null) {
+                System.out.println("Slot " + (i + 1) + " : Available");
+            } else {
+                System.out.println("Slot " + (i + 1) +
+                        " : Occupied - " + queue[i].vehicleNumber);
+            }
+        }
+    }
+
+    // Display vehicles in FIFO order
+    void displayQueue() {
+
+        if (isEmpty()) {
+            System.out.println("\nNo vehicles are parked.");
+            return;
+        }
+
+        System.out.println("\n========== VEHICLE QUEUE ==========");
+
+        int i = front;
+
+        while (true) {
+
+            System.out.println("Vehicle: " + queue[i].vehicleNumber
+                    + " | Slot: " + queue[i].slotNumber);
+
+            if (i == rear) {
+                break;
+            }
+
+            i = (i + 1) % capacity;
+        }
+
+        System.out.println("Front Position: " + front);
+        System.out.println("Rear Position: " + rear);
+    }
+
+    // Find next circular position
+    int getNextSlot() {
+
+        if (isEmpty()) {
+            return 1;
+        }
+
+        return (rear + 1) % capacity + 1;
+    }
+}
+
+// Main class of the project
+public class ParkingSlotManagement {
+
+    static Scanner sc = new Scanner(System.in);
+
+    static final int CAPACITY = 5;
+    static final int RATE = 20;
+
+    static ParkingCircularQueue parking = new ParkingCircularQueue(CAPACITY);
+
+    static ArrayList<String> history = new ArrayList<>();
+
+    static int totalEntries = 0;
+    static int totalExits = 0;
+    static double totalCollection = 0;
+
+    static DateTimeFormatter format = DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm:ss");
+
+    // Read menu choice
+    static int getChoice() {
+
+        while (true) {
+
+            try {
+                return Integer.parseInt(sc.nextLine());
+            } catch (NumberFormatException e) {
+                System.out.print("Enter a valid number: ");
+            }
+        }
+    }
+
+    // Calculate parking fee
+    static long calculateFee(ParkingVehicle v) {
+
+        long minutes = Duration.between(
+                v.entryTime, LocalDateTime.now()).toMinutes();
+
+        long hours = Math.max(1, (minutes + 59) / 60);
+
+        return hours * RATE;
+    }
+
+    // 1. Park a vehicle
+    static void parkVehicle() {
+
+        if (parking.isFull()) {
+            System.out.println("\nSorry! Parking is Full.");
+            return;
+        }
+
+        System.out.print("\nEnter Vehicle Number: ");
+
+        String number = sc.nextLine().trim().toUpperCase();
+
+        if (number.isEmpty()) {
+            System.out.println("Vehicle number cannot be empty.");
+            return;
+        }
+
+        if (parking.search(number) != null) {
+            System.out.println("This vehicle is already parked!");
+            return;
+        }
+
+        int slot = parking.getNextSlot();
+
+        ParkingVehicle v = new ParkingVehicle(number, slot);
+
+        parking.enqueue(v);
+
+        totalEntries++;
+
+        history.add("Vehicle: " + number +
+                " | Entry Time: " + v.entryTime.format(format));
+
+        System.out.println("\nVehicle Parked Successfully!");
+        System.out.println("Vehicle Number: " + number);
+        System.out.println("Parking Slot: " + slot);
+        System.out.println("Entry Time: " + v.entryTime.format(format));
+    }
+
+    // 2. Remove a vehicle
+    static void removeVehicle() {
+
+        if (parking.isEmpty()) {
+            System.out.println("\nParking is Empty!");
+            return;
+        }
+
+        ParkingVehicle v = parking.dequeue();
+
+        long fee = calculateFee(v);
+
+        totalExits++;
+        totalCollection += fee;
+
+        System.out.println("\n========== VEHICLE EXIT ==========");
+        System.out.println("Vehicle Number: " + v.vehicleNumber);
+        System.out.println("Released Slot: " + v.slotNumber);
+        System.out.println("Entry Time: " + v.entryTime.format(format));
+        System.out.println("Exit Time: " +
+                LocalDateTime.now().format(format));
+        System.out.println("Parking Fee: Rs. " + fee);
+        System.out.println("Vehicle Exited Successfully!");
+    }
+
+    // 3. Display parking slots
+    static void displaySlots() {
+        parking.displaySlots();
+    }
+
+    // 4. Check parking availability
+    static void checkAvailability() {
+
+        int occupied = parking.occupiedCount();
+        int available = CAPACITY - occupied;
+
+        System.out.println("\n========== PARKING AVAILABILITY ==========");
+        System.out.println("Total Slots: " + CAPACITY);
+        System.out.println("Occupied Slots: " + occupied);
+        System.out.println("Available Slots: " + available);
+
+        if (available == 0) {
+            System.out.println("Status: Parking Full");
+        } else {
+            System.out.println("Status: Parking Available");
+        }
+    }
+
+    // 5. Search a vehicle
+    static void searchVehicle() {
+
+        System.out.print("\nEnter Vehicle Number: ");
+
+        String number = sc.nextLine().trim();
+
+        ParkingVehicle v = parking.search(number);
+
+        if (v != null) {
+
+            System.out.println("\nVehicle Found!");
+            System.out.println("Vehicle Number: " + v.vehicleNumber);
+            System.out.println("Parking Slot: " + v.slotNumber);
+            System.out.println("Entry Time: " + v.entryTime.format(format));
+
+        } else {
+            System.out.println("\nVehicle Not Found!");
+        }
+    }
+
+    // 6. Display vehicle queue
+    static void displayVehicleQueue() {
+        parking.displayQueue();
+    }
+
+    // 7. Display parking statistics
+    static void parkingStatistics() {
+
+        System.out.println("\n========== PARKING STATISTICS ==========");
+        System.out.println("Total Vehicle Entries: " + totalEntries);
+        System.out.println("Total Vehicles Exited: " + totalExits);
+        System.out.println("Currently Parked: " + parking.occupiedCount());
+        System.out.println("Available Slots: " +
+                (CAPACITY - parking.occupiedCount()));
+        System.out.println("Total Fee Collection: Rs. " + totalCollection);
+    }
+
+    // 8. Display vehicle entry history
+    static void vehicleHistory() {
+
+        System.out.println("\n========== VEHICLE ENTRY HISTORY ==========");
+
+        if (history.isEmpty()) {
+            System.out.println("No Entry History Available.");
+            return;
+        }
+
+        for (int i = 0; i < history.size(); i++) {
+            System.out.println((i + 1) + ". " + history.get(i));
+        }
+    }
+
+    // 9. Calculate parking fee
+    static void parkingFee() {
+
+        System.out.print("\nEnter Vehicle Number: ");
+
+        String number = sc.nextLine().trim();
+
+        ParkingVehicle v = parking.search(number);
+
+        if (v == null) {
+            System.out.println("Vehicle is not currently parked.");
+            return;
+        }
+
+        long fee = calculateFee(v);
+
+        System.out.println("\n========== PARKING FEE ==========");
+        System.out.println("Vehicle Number: " + v.vehicleNumber);
+        System.out.println("Parking Rate: Rs. " + RATE + " per hour");
+        System.out.println("Estimated Fee: Rs. " + fee);
+        System.out.println("Minimum Charge: Rs. 20");
+    }
+
+    // Main menu
+    public static void main(String[] args) {
+
+        int choice;
+
+        System.out.println("\n============================================");
+        System.out.println("       PARKING SLOT MANAGEMENT SYSTEM");
+        System.out.println("          USING CIRCULAR QUEUE");
+        System.out.println("============================================");
+
+        do {
+
+            System.out.println("\n--------------- MAIN MENU ----------------");
+            System.out.println("1. Park a Vehicle");
+            System.out.println("2. Remove a Vehicle");
+            System.out.println("3. Display Parking Slots");
+            System.out.println("4. Check Parking Availability");
+            System.out.println("5. Search Vehicle");
+            System.out.println("6. Display Vehicle Queue");
+            System.out.println("7. Parking Statistics");
+            System.out.println("8. Vehicle Entry History");
+            System.out.println("9. Calculate Parking Fee");
+            System.out.println("10. Exit");
+            System.out.println("-------------------------------------------");
+
+            System.out.print("Enter Your Choice: ");
+
+            choice = getChoice();
+
+            switch (choice) {
+
+                case 1:
+                    parkVehicle();
+                    break;
+
+                case 2:
+                    removeVehicle();
+                    break;
+
+                case 3:
+                    displaySlots();
+                    break;
+
+                case 4:
+                    checkAvailability();
+                    break;
+
+                case 5:
+                    searchVehicle();
+                    break;
+
+                case 6:
+                    displayVehicleQueue();
+                    break;
+
+                case 7:
+                    parkingStatistics();
+                    break;
+
+                case 8:
+                    vehicleHistory();
+                    break;
+
+                case 9:
+                    parkingFee();
+                    break;
+
+                case 10:
+                    System.out.println("\nThank You for Using Our System!");
+                    System.out.println("Project Ended Successfully.");
+                    break;
+
+                default:
+                    System.out.println("\nInvalid Choice! Select 1 to 10.");
+            }
+
+        } while (choice != 10);
+
+        sc.close();
+    }
+}
